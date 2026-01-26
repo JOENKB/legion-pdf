@@ -145,7 +145,7 @@
 </div>
 
 <script>
-const SERVER_IP = "100.82.161.21";
+const SERVER_IP = "110.52.281.61";
 const editor = document.getElementById('editor');
 const loader = document.getElementById('loader');
 
@@ -192,7 +192,7 @@ async function askAI(mode) {
     toggleLoading(true);
 
     try {
-        const response = await fetch(`http://${SERVER_IP}:11434/api/generate`, {
+        const response = await fetch(`http://${SERVER_IP}:12330/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
