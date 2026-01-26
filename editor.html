@@ -3,51 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ScolaireDocs AI - Pro Editor</title>
+    <title>ScolaireDocs AI - L'Éditeur Intelligent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Open+Sans&family=Playfair+Display&family=Roboto&family=Merriweather&display=swap" rel="stylesheet">
-
     <style>
-        body { background-color: #f0f2f5; font-family: 'Open Sans', sans-serif; }
+        body { background-color: #f0f2f5; }
 
-        /* Conteneur pour simuler les pages A4 */
-        #document-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-bottom: 50px;
-        }
-
+        /* Style "Feuille A4" */
         .paper {
             background: white;
             width: 210mm;
-            min-height: 297mm; /* Hauteur A4 */
+            min-height: 297mm;
             padding: 20mm;
-            margin: 15px 0;
-            box-shadow: 0 0 8px rgba(0,0,0,0.15);
+            margin: 20px auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
             outline: none;
-            position: relative;
-            overflow-wrap: break-word;
+            transition: all 0.3s;
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.5;
         }
 
+        .paper:focus { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+
+        /* Barre d'outils */
         .google-toolbar {
             position: sticky;
             top: 0;
             z-index: 50;
-            background: #f9fbfd;
+            background: #f8f9fa;
             border-bottom: 1px solid #dfe1e5;
         }
 
         .ai-badge {
             background: linear-gradient(90deg, #4285f4, #9b51e0);
             color: white;
-            padding: 2px 7px;
+            padding: 2px 8px;
             border-radius: 10px;
-            font-size: 9px;
-            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
         }
 
+        /* Stats Bar */
         .stats-bar {
             position: fixed;
             bottom: 0;
@@ -64,183 +61,223 @@
         }
 
         @media print {
-            .google-toolbar, .no-print, .stats-bar { display: none !important; }
+            .google-toolbar, .no-print, .stats-bar { display: none; }
             body { background: white; }
-            .paper { margin: 0; box-shadow: none; border: none; }
+            .paper { margin: 0; box-shadow: none; width: 100%; }
         }
+
+        .loading-cursor { cursor: wait !important; opacity: 0.6; }
     </style>
 </head>
-<body>
+<body class="font-sans">
 
-    <div class="google-toolbar px-4 py-2 no-print">
-        <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-3">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/0/01/Google_Docs_logo_%282014-2020%29.svg" width="22">
-                <input type="text" id="docTitle" value="Document Scolaire" class="bg-transparent font-medium text-gray-700 hover:border-gray-300 border border-transparent px-2 outline-none">
-            </div>
-            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-1.5 rounded-full text-sm font-bold transition shadow-sm">
-                <i class="fas fa-file-pdf mr-2"></i>Exporter PDF
+<div class="google-toolbar px-4 py-2">
+    <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-3">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/01/Google_Docs_logo_%282014-2020%29.svg" width="24" alt="">
+            <input type="text" id="docTitle" value="Document sans titre" class="bg-transparent font-medium text-gray-700 focus:bg-white px-2 rounded hover:border-gray-300 border border-transparent outline-none">
+        </div>
+        <div class="flex gap-2 no-print">
+            <button onclick="downloadDoc()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full text-sm font-medium transition">
+                <i class="fas fa-file-download"></i> Sauvegarder (Local)
             </button>
         </div>
-
-        <div class="flex flex-wrap items-center gap-2 bg-white rounded-full px-4 py-1.5 border shadow-sm max-w-fit mx-auto">
-            <select onchange="execCmd('fontName', this.value)" class="text-xs border-none outline-none cursor-pointer font-medium bg-transparent">
-                <option value="Arial">Arial</option>
-                <option value="Roboto">Roboto</option>
-                <option value="Montserrat">Montserrat</option>
-                <option value="Playfair Display">Playfair Display</option>
-                <option value="Merriweather">Merriweather</option>
-                <option value="Times New Roman">Times New Roman</option>
-            </select>
-
-            <div class="w-px h-6 bg-gray-200 mx-1"></div>
-
-            <button onclick="execCmd('bold')" class="p-2 hover:bg-gray-100 rounded" title="Gras"><i class="fas fa-bold"></i></button>
-            <button onclick="execCmd('italic')" class="p-2 hover:bg-gray-100 rounded"><i class="fas fa-italic"></i></button>
-            <button onclick="execCmd('underline')" class="p-2 hover:bg-gray-100 rounded"><i class="fas fa-underline"></i></button>
-
-            <div class="w-px h-6 bg-gray-200 mx-1"></div>
-
-            <label class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-600" title="Insérer une image">
-                <i class="fas fa-image"></i>
-                <input type="file" class="hidden" accept="image/*" onchange="insertImageLocal(this)">
-            </label>
-
-            <div class="w-px h-6 bg-gray-200 mx-1"></div>
-
-            <button onclick="askAI()" class="flex items-center gap-2 px-3 py-1 hover:bg-purple-50 text-purple-700 rounded-full transition group">
-                <i class="fas fa-magic text-purple-500"></i>
-                <span class="text-xs font-bold">Llama3</span>
-            </button>
-
-            <label class="flex items-center gap-2 px-3 py-1 hover:bg-green-50 text-green-700 rounded-full cursor-pointer transition">
-                <i class="fas fa-eye text-green-500"></i>
-                <span class="text-xs font-bold">Llava</span>
-                <input type="file" id="imageInput" class="hidden" accept="image/*" onchange="processVision()">
-            </label>
-        </div>
     </div>
 
-    <main id="document-container" class="py-4 overflow-y-auto h-[calc(100vh-140px)]">
-        <div id="editor" class="paper" contenteditable="true" oninput="updateStats()">
-            <h1 style="text-align: center; font-size: 24pt;">Titre du Cours</h1>
-            <p>Commencez à taper vos notes ici...</p>
-        </div>
-    </main>
+    <div class="flex flex-wrap items-center gap-1 bg-white rounded-full px-4 py-1 border shadow-sm max-w-fit mx-auto mb-2">
 
-    <div class="stats-bar no-print">
-        <span id="pageCount"><i class="fas fa-copy mr-1"></i> 1 Page</span>
-        <span id="wordCount"><i class="fas fa-file-word mr-1"></i> 0 mots</span>
-        <span id="charCount"><i class="fas fa-keyboard mr-1"></i> 0 caractères</span>
+        <select onchange="execCmd('fontName', this.value)" class="text-sm border-none bg-transparent hover:bg-gray-100 rounded p-1 outline-none">
+            <option value="Arial" selected>Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+        </select>
+
+        <select onchange="applyFontSize(this.value)" class="text-sm border-none bg-transparent hover:bg-gray-100 rounded p-1 outline-none">
+            <option value="1">10 pt</option>
+            <option value="3" selected>12 pt</option>
+            <option value="4">14 pt</option>
+            <option value="5">18 pt</option>
+            <option value="6">24 pt</option>
+            <option value="7">36 pt</option>
+        </select>
+
+        <div class="w-px h-6 bg-gray-300 mx-1"></div>
+
+        <button onclick="execCmd('bold')" class="p-2 hover:bg-gray-100 rounded" title="Gras"><i class="fas fa-bold"></i></button>
+        <button onclick="execCmd('italic')" class="p-2 hover:bg-gray-100 rounded"><i class="fas fa-italic"></i></button>
+        <button onclick="execCmd('underline')" class="p-2 hover:bg-gray-100 rounded"><i class="fas fa-underline"></i></button>
+
+        <div class="w-px h-6 bg-gray-300 mx-1"></div>
+
+        <button onclick="askAI('continue')" class="flex items-center gap-2 p-2 hover:bg-purple-50 text-purple-700 rounded transition group">
+            <i class="fas fa-magic text-purple-500 group-hover:animate-spin"></i>
+            <span class="text-sm font-bold">Continuer l'écriture</span>
+            <span class="ai-badge">Llama3</span>
+        </button>
+
+        <label class="flex items-center gap-2 p-2 hover:bg-blue-50 text-blue-700 rounded cursor-pointer transition">
+            <i class="fas fa-camera text-blue-500"></i>
+            <span class="text-sm font-bold">Analyser Image</span>
+            <span class="ai-badge" style="background: #34a853">Llava</span>
+            <input type="file" id="imageInput" class="hidden" accept="image/*" onchange="processVision()">
+        </label>
     </div>
+</div>
 
-    <div id="loader" class="hidden fixed bottom-12 right-10 bg-white shadow-2xl border-2 border-purple-500 p-4 rounded-2xl flex items-center gap-4 animate-bounce z-[100]">
-        <div class="w-4 h-4 bg-purple-600 rounded-full animate-ping"></div>
-        <span class="font-bold text-purple-700 italic">L'IA analyse...</span>
+<main class="py-8 h-[calc(100vh-140px)] overflow-y-auto">
+    <div id="editor" class="paper" contenteditable="true" oninput="updateStats()">
+        <h1 class="text-2xl font-bold">Titre de ton cours</h1>
+        <p>Commence à rédiger ici ou utilise l'IA pour t'aider...</p>
     </div>
+</main>
 
-    <script>
-        const SERVER_IP = "000.00.000.000";
-        const editor = document.getElementById('editor');
+<div class="stats-bar no-print">
+    <span id="statPages">Page : 1</span>
+    <span id="statWords">Mots : 0</span>
+    <span id="statChars">Caractères : 0</span>
+</div>
 
-        function execCmd(cmd, val = null) {
-            document.execCommand(cmd, false, val);
-            editor.focus();
+<div id="loader" class="hidden fixed bottom-14 right-10 bg-white shadow-2xl border p-4 rounded-2xl flex items-center gap-4 animate-bounce">
+    <div class="w-4 h-4 bg-purple-600 rounded-full animate-ping"></div>
+    <span class="font-bold text-purple-700">L'IA réfléchit...</span>
+</div>
+
+<script>
+const SERVER_IP = "100.82.161.21";
+const editor = document.getElementById('editor');
+const loader = document.getElementById('loader');
+
+// Commandes de base
+function execCmd(cmd, value = null) {
+    document.execCommand(cmd, false, value);
+    editor.focus();
+}
+
+function applyFontSize(size) {
+    document.execCommand('fontSize', false, size);
+}
+
+// Mise à jour des stats (Mots, Caractères, Estimation Pages)
+function updateStats() {
+    const text = editor.innerText || "";
+    const charCount = text.length;
+    const wordCount = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+
+    // Estimation simple : environ 3000 caractères par page A4
+    const pageCount = Math.max(1, Math.ceil(editor.scrollHeight / 1122));
+
+    document.getElementById('statChars').innerText = `Caractères : ${charCount}`;
+    document.getElementById('statWords').innerText = `Mots : ${wordCount}`;
+    document.getElementById('statPages').innerText = `Pages : ${pageCount}`;
+}
+
+// --- FONCTION SAUVEGARDE LOCALE ---
+function downloadDoc() {
+    const title = document.getElementById('docTitle').value;
+    const content = editor.innerHTML;
+    const blob = new Blob(['<html><head><meta charset="utf-8"></head><body>' + content + '</body></html>'], {
+        type: 'application/msword'
+    });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = title + ".doc";
+    link.click();
+}
+
+// --- LOGIQUE IA : TEXTE (LLAMA 3) ---
+async function askAI(mode) {
+    const selectedText = window.getSelection().toString() || editor.innerText.slice(-800);
+    toggleLoading(true);
+
+    try {
+        const response = await fetch(`http://${SERVER_IP}:11434/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "llama3",
+                prompt: `Continue ce texte de manière fluide et pertinente : "${selectedText}"`,
+                stream: false
+            })
+        });
+
+        const data = await response.json();
+        insertAtCursor("<span style='color: #4b5563'>" + data.response.replace(/\n/g, "<br>") + "</span>");
+        updateStats();
+    } catch (err) {
+        alert("Erreur de connexion au serveur Ollama (Llama3)");
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+// --- LOGIQUE IA : VISION (LLAVA) ---
+async function processVision() {
+    const file = document.getElementById('imageInput').files[0];
+    if (!file) return;
+
+    toggleLoading(true);
+    const reader = new FileReader();
+
+    reader.onloadend = async function() {
+        const base64 = reader.result.split(',')[1];
+
+        try {
+            const response = await fetch(`http://${SERVER_IP}:11434/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: "llava",
+                    prompt: "Analyse et retranscris le contenu de cette image de façon structurée.",
+                    images: [base64],
+                    stream: false
+                })
+            });
+
+            const data = await response.json();
+            insertAtCursor(`
+                <div style="border-left: 4px solid #34a853; padding: 10px; margin: 10px 0; background: #f0fdf4">
+                    <strong>Analyse Image :</strong><br>${data.response.replace(/\n/g, "<br>")}
+                </div>
+            `);
             updateStats();
+        } catch (err) {
+            alert("Erreur Vision (Llava)");
+        } finally {
+            toggleLoading(false);
+            document.getElementById('imageInput').value = "";
         }
+    };
+    reader.readAsDataURL(file);
+}
 
-        // Insertion Image Locale (Hors IA)
-        function insertImageLocal(input) {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const imgHTML = `<img src="${e.target.result}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;">`;
-                    document.execCommand('insertHTML', false, imgHTML);
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+function insertAtCursor(html) {
+    editor.focus();
+    document.execCommand('insertHTML', false, html);
+}
 
-        // --- IA TEXTE ---
-        async function askAI() {
-            const selectedText = window.getSelection().toString() || editor.innerText.slice(-600);
-            toggleLoading(true);
-            try {
-                const response = await fetch(`http://${SERVER_IP}:101001/api/generate`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        model: "llama3",
-                        prompt: `Rédige la suite académique de ce texte sans astérisques : "${selectedText}"`,
-                        stream: false
-                    })
-                });
-                const data = await response.json();
-                document.execCommand('insertHTML', false, `<br><span style='color: #4b5563'>${data.response.replace(/\n/g, "<br>")}</span><br>`);
-            } catch (err) { alert("Serveur Llama3 injoignable"); }
-            finally { toggleLoading(false); updateStats(); }
-        }
+function toggleLoading(show) {
+    if(show) {
+        loader.classList.remove('hidden');
+        editor.classList.add('loading-cursor');
+    } else {
+        loader.classList.add('hidden');
+        editor.classList.remove('loading-cursor');
+    }
+}
 
-        // --- IA VISION ---
-        async function processVision() {
-            const file = document.getElementById('imageInput').files[0];
-            if (!file) return;
-            toggleLoading(true);
-            const reader = new FileReader();
-            reader.onloadend = async function() {
-                const base64 = reader.result.split(',')[1];
-                try {
-                    const response = await fetch(`http://${SERVER_IP}:11434/api/generate`, {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            model: "llava",
-                            prompt: "Analyse cet exercice ou ce document et retranscris le texte ou la solution.",
-                            images: [base64], stream: false
-                        })
-                    });
-                    const data = await response.json();
-                    const resultHTML = `
-                        <div style="margin:15px 0; border:1px solid #ddd; padding:10px; border-radius:10px; background:#f9f9f9;">
-                            <img src="${reader.result}" style="max-width:200px; display:block; margin-bottom:10px; border-radius:5px;">
-                            <div style="color:#166534; font-size:13px; font-style:italic; border-left:3px solid #34a853; padding-left:10px;">
-                                <strong>Note Llava :</strong> ${data.response}
-                            </div>
-                        </div><p>&nbsp;</p>`;
-                    document.execCommand('insertHTML', false, resultHTML);
-                } catch (e) { alert("Erreur Vision"); }
-                finally { toggleLoading(false); updateStats(); }
-            };
-            reader.readAsDataURL(file);
-        }
+// Auto-save
+setInterval(() => {
+    localStorage.setItem('scolaire_docs_autosave', editor.innerHTML);
+    updateStats();
+}, 10000);
 
-        // --- CALCUL STATS ET PAGES ---
-        function updateStats() {
-            const text = editor.innerText || "";
-            const charCount = text.length;
-            const wordCount = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
-
-            // Calcul des pages (Hauteur A4 ~ 1123 pixels en 96dpi)
-            const height = editor.scrollHeight;
-            const pages = Math.ceil(height / 1050); // Approximatif pour le visuel
-
-            document.getElementById('charCount').innerHTML = `<i class="fas fa-keyboard mr-1"></i> ${charCount} caractères`;
-            document.getElementById('wordCount').innerHTML = `<i class="fas fa-file-word mr-1"></i> ${wordCount} mots`;
-            document.getElementById('pageCount').innerHTML = `<i class="fas fa-copy mr-1"></i> ${pages} Page${pages > 1 ? 's' : ''}`;
-        }
-
-        function toggleLoading(s) { document.getElementById('loader').classList.toggle('hidden', !s); }
-
-        // Initialisation
-        window.onload = () => {
-            const saved = localStorage.getItem('scolaire_docs_autosave');
-            if(saved) editor.innerHTML = saved;
-            updateStats();
-        };
-
-        // Sauvegarde automatique
-        setInterval(() => {
-            localStorage.setItem('scolaire_docs_autosave', editor.innerHTML);
-        }, 5000);
-    </script>
+window.onload = () => {
+    const saved = localStorage.getItem('scolaire_docs_autosave');
+    if(saved) editor.innerHTML = saved;
+    updateStats();
+};
+</script>
 </body>
-</html> 
+</html>
