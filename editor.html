@@ -145,7 +145,7 @@
 </div>
 
 <script>
-const SERVER_IP = "100.82.161.21";
+const SERVER_IP = "100.97.151.81";
 const editor = document.getElementById('editor');
 const loader = document.getElementById('loader');
 
@@ -224,7 +224,7 @@ async function processVision() {
         const base64 = reader.result.split(',')[1];
 
         try {
-            const response = await fetch(`http://${SERVER_IP}:11434/api/generate`, {
+            const response = await fetch(`http://${SERVER_IP}:11789/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
