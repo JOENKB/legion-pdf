@@ -3,91 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legion PDF Editor - Web</title>
+    <title>Legion PDF Studio - AI Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Literata:wght@300;400;600;700;900&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
+        * { font-family: 'DM Sans', sans-serif; }
+        .font-serif { font-family: 'Literata', serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
         @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner { animation: spin 1s linear infinite; border-radius: 50%; border: 3px solid #ccc; border-top-color: #6366f1; width: 24px; height: 24px; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); } 50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.8); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+        @keyframes particle-float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+            50% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
+        }
+
+        .spinner { animation: spin 1s linear infinite; border-radius: 50%; border: 3px solid #e2e8f0; border-top-color: #8b5cf6; width: 24px; height: 24px; }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .slide-up { animation: slide-up 0.4s ease-out; }
+        .float { animation: float 3s ease-in-out infinite; }
+        .shimmer-bg {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
         [v-cloak] { display: none; }
+
+        .gradient-cosmic { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #4c1d95 50%, #5b21b6 75%, #6d28d9 100%); }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-strong { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(30px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .glass-dark { background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .ai-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #a78bfa;
+            border-radius: 50%;
+            animation: particle-float 3s ease-in-out infinite;
+        }
+
+        .chat-bubble { max-width: 75%; word-wrap: break-word; }
+        .typing-indicator span { animation: pulse 1.4s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        .pdf-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .pdf-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 20px 40px rgba(139, 92, 246, 0.2); }
+
+        .model-selector {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .model-selector::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .model-selector:hover::before { opacity: 1; }
+        .model-selector.active {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            transform: scale(1.05);
+        }
+
+        /* Rich Text Editor Styles */
+        .ql-container {
+            font-family: 'Literata', serif !important;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .ql-editor {
+            min-height: 500px;
+            padding: 40px 60px !important;
+            background: white;
+            color: #1e293b;
+        }
+        .ql-editor h1 { font-size: 2.5em; font-weight: 700; margin: 1em 0 0.5em; }
+        .ql-editor h2 { font-size: 2em; font-weight: 600; margin: 0.8em 0 0.4em; }
+        .ql-editor h3 { font-size: 1.5em; font-weight: 600; margin: 0.6em 0 0.3em; }
+        .ql-editor p { margin: 0.5em 0; }
+        .ql-editor strong { font-weight: 700; }
+        .ql-editor em { font-style: italic; }
+
+        .editor-container {
+            box-shadow: 0 4px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .ql-toolbar {
+            background: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            padding: 12px !important;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1e1b4b; }
+        ::-webkit-scrollbar-thumb { background: #6d28d9; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+        /* AI Status Badge */
+        .ai-status-badge {
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-status-badge::after {
+            content: '';
+            position: absolute;
+            inset: -100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 3s infinite;
+        }
     </style>
 </head>
-<body class="bg-slate-100 font-sans min-h-screen">
+<body class="gradient-cosmic min-h-screen text-white">
 
 <div id="app" v-cloak>
-    <header class="bg-indigo-600 text-white p-6 shadow-lg">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <div class="bg-white/20 p-3 rounded-xl">
-                    <i data-lucide="file-text"></i>
+    <!-- Animated Background Particles -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden" style="z-index: 0;">
+        <div v-for="i in 20" :key="i" class="ai-particle"
+             :style="{
+                 left: Math.random() * 100 + '%',
+                 top: Math.random() * 100 + '%',
+                 animationDelay: Math.random() * 3 + 's',
+                 animationDuration: (3 + Math.random() * 2) + 's'
+             }"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="glass-strong shadow-2xl sticky top-0 z-40 relative">
+        <div class="max-w-7xl mx-auto p-4 sm:p-6">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="relative group">
+                        <div class="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition"></div>
+                        <div class="relative bg-gradient-to-br from-violet-600 to-fuchsia-600 p-3 rounded-2xl">
+                            <i data-lucide="sparkles" class="w-7 h-7"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white to-violet-200 bg-clip-text text-transparent">Legion PDF Studio</h1>
+                        <p class="text-violet-300 text-sm font-semibold flex items-center gap-2">
+                            <span>AI-Powered Editor</span>
+                            <span class="text-violet-400">•</span>
+                            <span>Gratuit & Open Source</span>
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-2xl font-bold leading-none">Legion PDF</h1>
-                    <p class="text-indigo-100 text-sm mt-1">Éditeur Web Gratuit</p>
+                <div class="flex items-center gap-3">
+                    <div v-if="aiStatus === 'connected'" class="hidden sm:flex items-center gap-2 glass-strong px-4 py-2 rounded-full text-xs font-bold ai-status-badge">
+                        <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full pulse-glow"></div>
+                        <span>Ollama AI Active</span>
+                        <span class="text-violet-300">{{ availableModels.length }} modèles</span>
+                    </div>
+                    <button @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
+                            class="glass p-2.5 rounded-xl hover:bg-white/20 transition-all hover:scale-105">
+                        <i :data-lucide="viewMode === 'grid' ? 'list' : 'layout-grid'" class="w-5 h-5"></i>
+                    </button>
                 </div>
             </div>
-            <button @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'" class="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-                <i :data-lucide="viewMode === 'grid' ? 'list' : 'layout-grid'"></i>
-            </button>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto p-6 pb-24">
-        <div v-if="pdfs.length === 0" class="flex flex-col items-center justify-center py-20 text-slate-400">
-            <i data-lucide="file-text" class="w-20 h-20 mb-4 opacity-20"></i>
-            <p class="text-lg font-semibold text-slate-500">Aucun PDF importé</p>
-            <p class="text-sm">Cliquez sur le bouton + pour commencer</p>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 pb-32 relative z-10">
+        <!-- Empty State -->
+        <div v-if="pdfs.length === 0" class="flex flex-col items-center justify-center py-20 slide-up">
+            <div class="float mb-8 relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-3xl opacity-20"></div>
+                <i data-lucide="file-text" class="relative w-32 h-32 opacity-20"></i>
+            </div>
+            <h2 class="text-3xl font-black text-white/90 mb-3">Aucun PDF chargé</h2>
+            <p class="text-white/60 font-medium text-lg">Cliquez sur <span class="text-violet-400 font-bold">+</span> pour commencer votre aventure</p>
         </div>
 
-        <div :class="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6' : 'space-y-3'">
-            <div v-for="pdf in pdfs" :key="pdf.id" 
+        <!-- PDF Grid/List -->
+        <div :class="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-4'">
+            <div v-for="pdf in pdfs" :key="pdf.id"
                  @click="toggleActionMenu(pdf.id)"
-                 class="bg-white rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md transition relative group overflow-hidden">
-                
-                <div :class="viewMode === 'grid' ? 'h-32 bg-slate-50 flex items-center justify-center' : 'p-4 flex items-center gap-4'">
-                    <div class="bg-red-500 p-3 rounded-lg text-white shadow-sm">
-                        <i data-lucide="file-text" :class="viewMode === 'grid' ? 'w-10 h-10' : 'w-6 h-6'"></i>
+                 class="pdf-card glass-strong rounded-3xl cursor-pointer overflow-hidden group relative">
+
+                <!-- Grid View -->
+                <div v-if="viewMode === 'grid'" class="p-6">
+                    <div class="bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-4 rounded-2xl mb-4 inline-block shadow-lg group-hover:shadow-2xl transition">
+                        <i data-lucide="file-text" class="w-8 h-8"></i>
                     </div>
-                    <div v-if="viewMode === 'list'" class="flex-1 truncate">
-                        <h3 class="font-bold text-slate-800 truncate">{{ pdf.filename }}</h3>
-                        <span class="text-xs text-slate-400">{{ formatSize(pdf.size) }} • PDF</span>
+                    <h3 class="font-bold text-white text-lg mb-2 truncate">{{ pdf.filename }}</h3>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs bg-violet-500/30 text-violet-200 px-3 py-1 rounded-full font-bold">PDF</span>
+                        <span class="text-xs text-white/50 font-semibold">{{ formatSize(pdf.size) }}</span>
                     </div>
                 </div>
 
-                <div v-if="viewMode === 'grid'" class="p-4">
-                    <h3 class="font-bold text-slate-800 truncate text-sm">{{ pdf.filename }}</h3>
-                    <div class="flex items-center gap-2 mt-2">
-                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold uppercase">PDF</span>
-                        <span class="text-[10px] text-slate-400 font-medium">{{ formatSize(pdf.size) }}</span>
+                <!-- List View -->
+                <div v-else class="p-4 flex items-center gap-4">
+                    <div class="bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-3 rounded-xl shadow-lg">
+                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-white truncate">{{ pdf.filename }}</h3>
+                        <span class="text-xs text-white/50 font-semibold">{{ formatSize(pdf.size) }} • PDF</span>
                     </div>
                 </div>
 
-                <div v-if="activeActionId === pdf.id" class="absolute inset-0 bg-white/95 flex flex-col p-2 z-10">
-                    <button @click.stop="openViewer(pdf)" class="flex items-center gap-3 p-2 hover:bg-indigo-50 rounded-lg text-indigo-600 font-medium">
-                        <i data-lucide="eye" class="w-4 h-4"></i> Lire
+                <!-- Action Menu Overlay -->
+                <div v-if="activeActionId === pdf.id"
+                     class="absolute inset-0 glass-strong flex flex-col p-4 gap-2 z-10 slide-up">
+                    <button @click.stop="openViewer(pdf)"
+                            class="flex items-center gap-3 p-3 hover:bg-violet-500/30 rounded-xl text-violet-200 font-bold transition-all hover:scale-105 group/btn">
+                        <i data-lucide="eye" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Lire le PDF
                     </button>
-                    <button @click.stop="openEditor(pdf)" class="flex items-center gap-3 p-2 hover:bg-emerald-50 rounded-lg text-emerald-600 font-medium">
-                        <i data-lucide="edit-3" class="w-4 h-4"></i> Éditer
+                    <button @click.stop="openEditor(pdf)"
+                            class="flex items-center gap-3 p-3 hover:bg-emerald-500/30 rounded-xl text-emerald-200 font-bold transition-all hover:scale-105 group/btn">
+                        <i data-lucide="edit-3" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Éditer (Word-like)
                     </button>
-                    <button @click.stop="downloadPdf(pdf)" class="flex items-center gap-3 p-2 hover:bg-amber-50 rounded-lg text-amber-600 font-medium">
-                        <i data-lucide="download" class="w-4 h-4"></i> Télécharger
+                    <button @click.stop="openAiChat(pdf)"
+                            class="flex items-center gap-3 p-3 hover:bg-fuchsia-500/30 rounded-xl text-fuchsia-200 font-bold transition-all hover:scale-105 group/btn">
+                        <i data-lucide="message-square" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Chat AI
                     </button>
-                    <button @click.stop="deletePdf(pdf.id)" class="flex items-center gap-3 p-2 hover:bg-red-50 rounded-lg text-red-600 font-medium mt-auto">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer
+                    <button @click.stop="summarizePdf(pdf)"
+                            class="flex items-center gap-3 p-3 hover:bg-pink-500/30 rounded-xl text-pink-200 font-bold transition-all hover:scale-105 group/btn">
+                        <i data-lucide="sparkles" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Résumer avec AI
+                    </button>
+                    <button @click.stop="downloadPdf(pdf)"
+                            class="flex items-center gap-3 p-3 hover:bg-amber-500/30 rounded-xl text-amber-200 font-bold transition-all hover:scale-105 group/btn">
+                        <i data-lucide="download" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Télécharger
+                    </button>
+                    <button @click.stop="deletePdf(pdf.id)"
+                            class="flex items-center gap-3 p-3 hover:bg-red-500/30 rounded-xl text-red-200 font-bold transition-all hover:scale-105 group/btn mt-auto">
+                        <i data-lucide="trash-2" class="w-5 h-5 group-hover/btn:scale-110 transition"></i> Supprimer
                     </button>
                 </div>
             </div>
         </div>
     </main>
 
-    <div class="fixed bottom-8 right-8 flex flex-col items-end gap-4">
-        <div v-if="showMenu" class="bg-indigo-600 text-white py-3 px-6 rounded-xl shadow-xl mb-2 flex items-center gap-3 cursor-pointer hover:bg-indigo-700" @click="triggerFileInput">
-            <i data-lucide="upload"></i>
-            <span class="font-bold">Importer un PDF</span>
-        </div>
-        <button @click="showMenu = !showMenu" 
-                class="w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white transition transform active:scale-95"
+    <!-- Floating Action Button -->
+    <div class="fixed bottom-8 right-8 flex flex-col items-end gap-4 z-30">
+        <transition name="slide">
+            <div v-if="showMenu" class="glass-strong py-4 px-6 rounded-2xl shadow-2xl mb-2 flex items-center gap-3 cursor-pointer hover:bg-white/20 transition-all hover:scale-105"
+                 @click="triggerFileInput">
+                <i data-lucide="upload" class="w-5 h-5"></i>
+                <span class="font-bold">Importer PDF</span>
+            </div>
+        </transition>
+        <button @click="showMenu = !showMenu"
+                class="w-16 h-16 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-full shadow-2xl flex items-center justify-center transition-all transform active:scale-95 hover:shadow-violet-500/50 hover:scale-110"
                 :class="{'rotate-45': showMenu}">
             <i data-lucide="plus" class="w-8 h-8"></i>
         </button>
@@ -95,39 +272,141 @@
 
     <input type="file" ref="fileInput" @change="handleFileUpload" accept=".pdf" class="hidden">
 
+    <!-- PDF Viewer -->
     <div v-if="viewerVisible" class="fixed inset-0 bg-black z-50 flex flex-col">
-        <div class="p-4 flex items-center bg-indigo-600 text-white">
-            <button @click="viewerVisible = false" class="p-2"><i data-lucide="arrow-left"></i></button>
+        <div class="p-4 flex items-center bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg">
+            <button @click="viewerVisible = false" class="p-2 hover:bg-white/20 rounded-lg transition">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+            </button>
             <span class="ml-4 font-bold truncate flex-1">{{ activePdf?.filename }}</span>
         </div>
         <iframe :src="pdfUrl" class="flex-1 w-full border-none"></iframe>
     </div>
 
-    <div v-if="editorVisible" class="fixed inset-0 bg-slate-50 z-50 flex flex-col">
-        <div class="p-4 flex items-center bg-indigo-600 text-white shadow-lg">
-            <button @click="editorVisible = false" class="p-2"><i data-lucide="arrow-left"></i></button>
-            <span class="ml-4 font-bold flex-1">Édition de texte</span>
-            <button @click="savePdf" :disabled="saving" class="bg-emerald-500 px-4 py-2 rounded-lg font-bold flex items-center gap-2 active:scale-95">
-                <i v-if="!saving" data-lucide="save"></i>
+    <!-- Rich Text Editor (Word-like) -->
+    <div v-if="editorVisible" class="fixed inset-0 bg-slate-100 z-50 flex flex-col">
+        <div class="p-4 flex items-center bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg">
+            <button @click="closeEditor" class="p-2 hover:bg-white/20 rounded-lg transition">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+            </button>
+            <span class="ml-4 font-bold flex-1 flex items-center gap-3">
+                <i data-lucide="file-edit" class="w-5 h-5"></i>
+                Éditeur de Document - {{ originalFileName }}.pdf
+            </span>
+            <button @click="savePdf" :disabled="saving"
+                    class="bg-emerald-500 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-50 hover:shadow-lg">
+                <i v-if="!saving" data-lucide="save" class="w-5 h-5"></i>
                 <div v-else class="spinner !border-white !border-t-transparent w-4 h-4"></div>
-                {{ saving ? 'Conversion...' : 'Enregistrer' }}
+                {{ saving ? 'Sauvegarde...' : 'Enregistrer PDF' }}
             </button>
         </div>
-        <div class="p-6 flex flex-col flex-1 overflow-hidden">
-            <div class="bg-indigo-50 p-4 rounded-xl mb-4 flex items-center gap-3 text-indigo-700 border border-indigo-100 font-semibold">
-                <i data-lucide="file-text"></i> {{ originalFileName }}.pdf
-            </div>
-            <textarea v-model="pdfContent" class="flex-1 w-full p-6 rounded-2xl border border-slate-200 shadow-inner font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"></textarea>
-            <div class="mt-4 flex justify-between text-xs text-slate-400 font-bold uppercase tracking-wider">
-                <span>{{ pdfContent.length }} caractères</span>
-                <span>Conversion vers PDF via Serveur Cloud</span>
+        <div class="flex-1 overflow-auto p-8 bg-slate-200">
+            <div class="max-w-4xl mx-auto">
+                <div class="editor-container bg-white shadow-2xl">
+                    <div ref="quillEditor" class="bg-white"></div>
+                </div>
+                <div class="mt-6 flex justify-between text-sm text-slate-600 font-semibold">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="type" class="w-4 h-4"></i>
+                        Éditeur de texte enrichi
+                    </span>
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        Conversion automatique en PDF
+                    </span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div v-if="loading" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-        <div class="spinner w-12 h-12 border-4 mb-4"></div>
-        <p class="font-bold text-indigo-600 animate-pulse text-lg">Communication avec le serveur...</p>
+    <!-- AI Chat Interface (Enhanced) -->
+    <div v-if="aiChatVisible" class="fixed inset-0 gradient-cosmic z-50 flex flex-col">
+        <!-- Enhanced Header with Model Selector -->
+        <div class="glass-strong shadow-2xl">
+            <div class="p-4 flex items-center">
+                <button @click="aiChatVisible = false" class="p-2 hover:bg-white/20 rounded-lg transition">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                </button>
+                <div class="ml-4 flex-1">
+                    <div class="font-bold text-lg flex items-center gap-2">
+                        <i data-lucide="bot" class="w-5 h-5"></i>
+                        Conversation AI avec votre PDF
+                    </div>
+                    <div class="text-xs text-white/70 mt-1">{{ activePdf?.filename }}</div>
+                </div>
+            </div>
+
+            <!-- Model Selector Bar -->
+            <div class="px-4 pb-4">
+                <div class="glass p-3 rounded-xl">
+                    <div class="text-xs font-bold text-white/70 mb-2 uppercase tracking-wide">Sélectionner le modèle Ollama</div>
+                    <div class="flex gap-2 overflow-x-auto pb-2">
+                        <button v-for="model in availableModels" :key="model"
+                                @click="selectModel(model)"
+                                :class="{'active': currentModel === model}"
+                                class="model-selector glass px-4 py-2.5 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2 hover:scale-105 transition-all">
+                            <i data-lucide="cpu" class="w-4 h-4"></i>
+                            {{ formatModelName(model) }}
+                            <span v-if="currentModel === model" class="text-emerald-300">✓</span>
+                        </button>
+                    </div>
+                    <div class="mt-2 text-xs text-white/50 font-medium">
+                        Modèle actif: <span class="text-violet-300 font-bold">{{ formatModelName(currentModel) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4" ref="chatContainer">
+            <div v-for="(msg, idx) in chatMessages" :key="idx"
+                 :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'"
+                 class="slide-up">
+                <div :class="msg.role === 'user' ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white' : 'glass-strong text-white'"
+                     class="chat-bubble px-5 py-3 rounded-2xl shadow-lg">
+                    <div class="font-bold text-xs mb-2 opacity-70 flex items-center gap-2">
+                        <i :data-lucide="msg.role === 'user' ? 'user' : 'bot'" class="w-3 h-3"></i>
+                        {{ msg.role === 'user' ? 'Vous' : 'AI Assistant' }}
+                    </div>
+                    <div class="whitespace-pre-wrap leading-relaxed">{{ msg.content }}</div>
+                </div>
+            </div>
+
+            <div v-if="aiTyping" class="flex justify-start slide-up">
+                <div class="glass-strong px-5 py-4 rounded-2xl shadow-lg">
+                    <div class="typing-indicator flex gap-1.5">
+                        <span class="w-2.5 h-2.5 bg-violet-400 rounded-full"></span>
+                        <span class="w-2.5 h-2.5 bg-fuchsia-400 rounded-full"></span>
+                        <span class="w-2.5 h-2.5 bg-pink-400 rounded-full"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-4 glass-strong border-t border-white/10">
+            <div class="flex gap-3">
+                <input v-model="chatInput" @keyup.enter="sendChatMessage"
+                       type="text" placeholder="Posez une question sur votre PDF..."
+                       class="flex-1 bg-white/10 border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-white/50 focus:ring-2 focus:ring-violet-500 focus:outline-none font-medium"
+                       :disabled="aiTyping">
+                <button @click="sendChatMessage" :disabled="!chatInput.trim() || aiTyping"
+                        class="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 py-3.5 rounded-xl font-bold hover:from-violet-700 hover:to-fuchsia-700 transition-all disabled:opacity-50 hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Envoyer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+        <div class="relative">
+            <div class="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-2xl opacity-50"></div>
+            <div class="relative spinner w-20 h-20 border-4"></div>
+        </div>
+        <p class="font-bold text-white text-2xl mb-2 mt-8">{{ loadingMessage }}</p>
+        <p class="text-white/60 text-sm">Veuillez patienter...</p>
     </div>
 </div>
 
@@ -136,30 +415,85 @@
 
     createApp({
         setup() {
-            const API_URL = "http://100.82.161.21:8080/docs#/";
+            // Configuration
+            const API_URL = "http://100.82.161.21:8080";
+            const OLLAMA_URL = "http://100.82.161.21:11434";
+
+            // État général
             const pdfs = ref([]);
             const loading = ref(false);
+            const loadingMessage = ref('Chargement...');
             const showMenu = ref(false);
             const viewMode = ref('grid');
             const activeActionId = ref(null);
+
+            // Viewer & Editor
             const viewerVisible = ref(false);
             const editorVisible = ref(false);
             const activePdf = ref(null);
             const pdfUrl = ref('');
-            const pdfContent = ref('');
             const originalFileName = ref('');
             const saving = ref(false);
             const fileInput = ref(null);
+            const quillEditor = ref(null);
+            let quill = null;
 
+            // AI Chat
+            const aiChatVisible = ref(false);
+            const chatMessages = ref([]);
+            const chatInput = ref('');
+            const aiTyping = ref(false);
+            const currentModel = ref('llama3');
+            const availableModels = ref(['llama3', 'llama3.2', 'mistral', 'phi3', 'gemma2']);
+            const aiStatus = ref('disconnected');
+            const chatContainer = ref(null);
+            const currentPdfText = ref('');
+
+            // Icônes
             const refreshIcons = () => {
                 nextTick(() => lucide.createIcons());
             };
 
-            const formatSize = (bytes) => {
-                if (!bytes) return '0 KB';
-                return bytes < 1048576 ? (bytes / 1024).toFixed(1) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB';
+            // Vérifier Ollama et récupérer les modèles disponibles
+            const checkOllamaConnection = async () => {
+                try {
+                    const res = await fetch(`${OLLAMA_URL}/api/tags`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.models && data.models.length > 0) {
+                            availableModels.value = data.models.map(m => m.name.split(':')[0]);
+                            currentModel.value = availableModels.value[0];
+                        }
+                        aiStatus.value = 'connected';
+                        console.log('✅ Ollama connecté -', availableModels.value.length, 'modèles disponibles');
+                    }
+                } catch (e) {
+                    aiStatus.value = 'disconnected';
+                    console.log('❌ Ollama non disponible');
+                }
             };
 
+            // Formatage
+            const formatSize = (bytes) => {
+                if (!bytes) return '0 KB';
+                return bytes < 1048576
+                    ? (bytes / 1024).toFixed(1) + ' KB'
+                    : (bytes / 1048576).toFixed(1) + ' MB';
+            };
+
+            const formatModelName = (model) => {
+                const names = {
+                    'llama3': 'Llama 3',
+                    'llama3.2': 'Llama 3.2',
+                    'mistral': 'Mistral',
+                    'phi3': 'Phi-3',
+                    'gemma2': 'Gemma 2',
+                    'llava': 'LLaVA (Vision)'
+                };
+                return names[model] || model.charAt(0).toUpperCase() + model.slice(1);
+            };
+
+            // Upload
             const triggerFileInput = () => {
                 fileInput.value.click();
                 showMenu.value = false;
@@ -168,7 +502,7 @@
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file || file.type !== 'application/pdf') {
-                    alert('Sélectionnez un PDF');
+                    alert('⚠️ Veuillez sélectionner un fichier PDF');
                     return;
                 }
                 pdfs.value.unshift({
@@ -181,6 +515,7 @@
                 refreshIcons();
             };
 
+            // Actions
             const toggleActionMenu = (id) => {
                 activeActionId.value = activeActionId.value === id ? null : id;
                 refreshIcons();
@@ -196,6 +531,7 @@
 
             const openEditor = async (pdf) => {
                 loading.value = true;
+                loadingMessage.value = 'Extraction du texte...';
                 try {
                     const base64 = await fileToBase64(pdf.file);
                     const res = await fetch(`${API_URL}/convert-to-text`, {
@@ -203,35 +539,97 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ pdf_base64: base64, filename: pdf.filename })
                     });
+
+                    if (!res.ok) throw new Error('Erreur serveur');
+
                     const data = await res.json();
                     if (data.success) {
-                        pdfContent.value = data.text;
                         originalFileName.value = pdf.filename.replace('.pdf', '');
                         editorVisible.value = true;
                         activeActionId.value = null;
+
+                        // Initialiser Quill après l'ouverture
+                        await nextTick();
+                        initQuillEditor(data.text);
                     }
                 } catch (e) {
-                    alert("Erreur serveur. Vérifiez le tunnel Cloudflare.");
+                    console.error(e);
+                    alert("❌ Erreur: Vérifiez que le serveur FastAPI tourne sur le port 8080");
                 } finally {
                     loading.value = false;
                     refreshIcons();
                 }
             };
 
+            const initQuillEditor = (text) => {
+                if (quill) {
+                    quill = null;
+                }
+
+                quill = new Quill(quillEditor.value, {
+                    theme: 'snow',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'indent': '-1'}, { 'indent': '+1' }],
+                            [{ 'align': [] }],
+                            ['blockquote', 'code-block'],
+                            [{ 'color': [] }, { 'background': [] }],
+                            ['clean']
+                        ]
+                    },
+                    placeholder: 'Commencez à écrire...'
+                });
+
+                // Convertir le texte brut en HTML structuré
+                const formattedText = text.split('\n').map(line => {
+                    line = line.trim();
+                    if (!line) return '<p><br></p>';
+
+                    // Détection des titres
+                    if (line.length < 80 && line.match(/^[A-ZÀ-Ÿ\s]+$/) && line.length > 3) {
+                        return `<h1>${line}</h1>`;
+                    } else if (line.match(/^\d+\.|^[A-Z][a-z]+:/)) {
+                        return `<h2>${line}</h2>`;
+                    }
+                    return `<p>${line}</p>`;
+                }).join('');
+
+                quill.root.innerHTML = formattedText;
+            };
+
+            const closeEditor = () => {
+                editorVisible.value = false;
+                if (quill) {
+                    quill = null;
+                }
+            };
+
             const savePdf = async () => {
                 saving.value = true;
                 try {
+                    const htmlContent = quill.root.innerHTML;
+                    const textContent = quill.getText();
+
                     const res = await fetch(`${API_URL}/convert-to-pdf`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: pdfContent.value, original_filename: originalFileName.value })
+                        body: JSON.stringify({
+                            text: textContent,
+                            original_filename: originalFileName.value
+                        })
                     });
+
+                    if (!res.ok) throw new Error('Erreur serveur');
+
                     const data = await res.json();
                     const blob = base64ToBlob(data.pdf_base64, 'application/pdf');
                     downloadBlob(blob, data.filename);
-                    editorVisible.value = false;
+                    closeEditor();
                 } catch (e) {
-                    alert("Erreur de sauvegarde");
+                    alert("❌ Erreur lors de la sauvegarde");
                 } finally {
                     saving.value = false;
                 }
@@ -242,13 +640,174 @@
             };
 
             const deletePdf = (id) => {
-                pdfs.value = pdfs.value.filter(p => p.id !== id);
+                if (confirm('Supprimer ce PDF ?')) {
+                    pdfs.value = pdfs.value.filter(p => p.id !== id);
+                }
             };
 
-            // Utils
-            const fileToBase64 = (file) => new Promise((r, j) => {
+            // AI Functions
+            const selectModel = (model) => {
+                currentModel.value = model;
+            };
+
+            const openAiChat = async (pdf) => {
+                loading.value = true;
+                loadingMessage.value = 'Préparation de l\'IA...';
+
+                try {
+                    const base64 = await fileToBase64(pdf.file);
+                    const res = await fetch(`${API_URL}/convert-to-text`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pdf_base64: base64, filename: pdf.filename })
+                    });
+
+                    if (!res.ok) throw new Error('Erreur serveur');
+
+                    const data = await res.json();
+                    if (data.success) {
+                        currentPdfText.value = data.text;
+                        activePdf.value = pdf;
+                        chatMessages.value = [{
+                            role: 'assistant',
+                            content: `🎯 Document chargé: "${pdf.filename}"\n\n✨ Je suis votre assistant AI propulsé par ${formatModelName(currentModel.value)}. Je peux vous aider à:\n\n• Répondre à vos questions sur le contenu\n• Résumer des sections spécifiques\n• Extraire des informations clés\n• Analyser et expliquer des concepts\n\nQue souhaitez-vous savoir ?`
+                        }];
+                        aiChatVisible.value = true;
+                        activeActionId.value = null;
+                    }
+                } catch (e) {
+                    alert("❌ Erreur lors de l'extraction du texte");
+                } finally {
+                    loading.value = false;
+                    refreshIcons();
+                }
+            };
+
+            const sendChatMessage = async () => {
+                if (!chatInput.value.trim() || aiTyping.value) return;
+
+                const userMessage = chatInput.value.trim();
+                chatMessages.value.push({ role: 'user', content: userMessage });
+                chatInput.value = '';
+                aiTyping.value = true;
+
+                // Auto-scroll
+                nextTick(() => {
+                    if (chatContainer.value) {
+                        chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+                    }
+                });
+
+                try {
+                    const prompt = `Tu es un assistant AI intelligent qui aide à analyser des documents PDF.
+
+CONTEXTE DU DOCUMENT:
+${currentPdfText.value.substring(0, 4000)}
+
+QUESTION DE L'UTILISATEUR:
+${userMessage}
+
+INSTRUCTIONS:
+- Réponds de manière concise et précise en français
+- Base-toi uniquement sur le contenu du document fourni
+- Si l'information n'est pas dans le document, dis-le clairement
+- Utilise des emojis pour rendre ta réponse plus engageante
+- Structure ta réponse avec des paragraphes courts
+
+Réponds maintenant:`;
+
+                    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: currentModel.value,
+                            prompt: prompt,
+                            stream: false,
+                            options: {
+                                temperature: 0.7,
+                                top_p: 0.9,
+                                top_k: 40
+                            }
+                        })
+                    });
+
+                    if (!res.ok) throw new Error('Erreur Ollama');
+
+                    const data = await res.json();
+                    chatMessages.value.push({
+                        role: 'assistant',
+                        content: data.response
+                    });
+
+                    // Auto-scroll
+                    nextTick(() => {
+                        if (chatContainer.value) {
+                            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+                        }
+                    });
+                } catch (e) {
+                    chatMessages.value.push({
+                        role: 'assistant',
+                        content: '❌ Erreur de connexion à Ollama. Vérifiez que:\n\n1. Ollama est bien démarré\n2. Le modèle ' + formatModelName(currentModel.value) + ' est installé\n3. Le service écoute sur le port 11434'
+                    });
+                } finally {
+                    aiTyping.value = false;
+                }
+            };
+
+            const summarizePdf = async (pdf) => {
+                loading.value = true;
+                loadingMessage.value = 'Génération du résumé AI...';
+
+                try {
+                    const base64 = await fileToBase64(pdf.file);
+                    const res = await fetch(`${API_URL}/convert-to-text`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pdf_base64: base64, filename: pdf.filename })
+                    });
+
+                    if (!res.ok) throw new Error('Erreur serveur');
+
+                    const data = await res.json();
+                    if (data.success) {
+                        const summaryRes = await fetch(`${OLLAMA_URL}/api/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: currentModel.value,
+                                prompt: `Analyse ce document et crée un résumé structuré en français:
+
+${data.text.substring(0, 5000)}
+
+Ton résumé doit inclure:
+1. 🎯 Sujet principal (1 phrase)
+2. 📌 Points clés (3-5 points)
+3. 💡 Conclusions importantes
+
+Sois concis et professionnel:`,
+                                stream: false
+                            })
+                        });
+
+                        if (!summaryRes.ok) throw new Error('Erreur Ollama');
+
+                        const summaryData = await summaryRes.json();
+                        alert(`📄 Résumé AI de "${pdf.filename}"\n\n${summaryData.response}`);
+                    }
+                } catch (e) {
+                    alert("❌ Erreur lors du résumé");
+                } finally {
+                    loading.value = false;
+                    activeActionId.value = null;
+                }
+            };
+
+            // Utilitaires
+            const fileToBase64 = (file) => new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = () => r(reader.result.split(',')[1]);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
 
@@ -262,26 +821,30 @@
             const downloadBlob = (blob, name) => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url; a.download = name; a.click();
+                a.href = url;
+                a.download = name;
+                a.click();
                 URL.revokeObjectURL(url);
             };
 
             onMounted(() => {
                 refreshIcons();
+                checkOllamaConnection();
             });
 
             return {
-                pdfs, loading, showMenu, viewMode, activeActionId, viewerVisible, 
-                editorVisible, activePdf, pdfUrl, pdfContent, originalFileName, saving,
-                fileInput, formatSize, triggerFileInput, handleFileUpload, toggleActionMenu,
-                openViewer, openEditor, savePdf, downloadPdf, deletePdf
+                pdfs, loading, loadingMessage, showMenu, viewMode, activeActionId,
+                viewerVisible, editorVisible, activePdf, pdfUrl, originalFileName,
+                saving, fileInput, quillEditor, aiChatVisible, chatMessages, chatInput,
+                aiTyping, currentModel, availableModels, aiStatus, chatContainer,
+                formatSize, formatModelName, triggerFileInput, handleFileUpload,
+                toggleActionMenu, openViewer, openEditor, closeEditor, savePdf,
+                downloadPdf, deletePdf, selectModel, openAiChat, sendChatMessage,
+                summarizePdf
             }
         }
     }).mount('#app');
 </script>
 
 </body>
-
 </html>
-
-
