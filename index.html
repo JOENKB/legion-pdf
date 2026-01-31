@@ -416,8 +416,8 @@
     createApp({
         setup() {
             // Configuration
-            const API_URL = "http://100.82.161.21:8080";
-            const OLLAMA_URL = "http://100.82.161.21:11434";
+            const API_URL = "http://100.82.161.21:7030";
+            const OLLAMA_URL = "http://100.82.161.21:11343";
 
             // État général
             const pdfs = ref([]);
@@ -554,7 +554,7 @@
                     }
                 } catch (e) {
                     console.error(e);
-                    alert("❌ Erreur: Vérifiez que le serveur FastAPI tourne sur le port 8080");
+                    alert("❌ Erreur: Vérifiez que le serveur FastAPI tourne sur le port 7030");
                 } finally {
                     loading.value = false;
                     refreshIcons();
@@ -848,3 +848,4 @@ Sois concis et professionnel:`,
 
 </body>
 </html>
+
